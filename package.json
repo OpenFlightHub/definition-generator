@@ -1,0 +1,14 @@
+{
+  "devDependencies": {
+    "@dbml/core": "^3.9.4",
+    "@readme/openapi-parser": "^2.5.0",
+    "@types/deasync": "^0.1.5",
+    "ts-node": "^10.9.2"
+  },
+  "dependencies": {
+    "@types/node": "^22.10.1",
+    "deasync": "^0.1.30",
+    "json-schema-to-typescript": "^15.0.4",
+    "typescript": "^5.7.2"
+  }
+}

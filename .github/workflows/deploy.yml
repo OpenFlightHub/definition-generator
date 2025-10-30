@@ -1,0 +1,39 @@
+env:
+  PROJECT_NAME: ofh-api
+
+name: deploy-api-service
+on:
+  push:
+    branches:
+      - master
+jobs:
+  deploy:
+    runs-on: [server]
+    steps:
+      - run: echo "HOME=$(pwd)" >> $GITHUB_ENV #fix https://github.com/actions/runner/issues/1864
+
+      - name: Clean Workspace Folder
+        run: |
+          rm -rf ./* || true
+          rm -rf ./.??* || true
+
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: Make secrets.json
+        run: |
+          cd repo
+          echo '${{secrets.SECRETS}}' > secrets.json
+
+      - name: Build docker image
+        run: docker build -t ${{ env.PROJECT_NAME }} repo
+
+      - name: Stop old docker container
+        run: docker stop ${{ env.PROJECT_NAME }} || true
+
+      - name: Remove old docker container
+        run: docker rm ${{ env.PROJECT_NAME }} || true
+
+      - name: Start new docker container
+        run: docker run --restart unless-stopped -p 127.0.0.1:6001:6001 -p 6002:6002 --add-host host.docker.internal:host-gateway --network=ofh -v /ofh_files:/ofh_files -v /ofh_logs:/ofh_logs --name ${{ env.PROJECT_NAME }} -d ${{ env.PROJECT_NAME }}

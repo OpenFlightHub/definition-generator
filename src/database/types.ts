@@ -1,0 +1,74 @@
+import Table from "@dbml/core/types/model_structure/table"
+import { convertJsonSchemaToTypescriptType } from "../util/json_schema_to_typescript"
+import { convertDBMLTypeToJSONSchemaType, parseNoteStateDefinition } from "../util/dbml"
+import { saveToFile } from "../util/file"
+
+export default async function generateDatabaseTypes(tables: Table[], dbmlString: string){
+    console.log('generate DB Types ...')
+
+    let exportString = ''
+
+    for(const table of tables){
+        if(table){
+            let name = table.name
+
+            if(name === ''){
+                console.error(table)
+                throw new Error('table.name is invalid: ' + name)
+            }
+
+            if(name.endsWith('s')){
+                name = name.substring(0, name.length - 1)
+            }
+
+            const schema = {
+                required: [],
+                properties: {}
+            }
+
+            for(const field of table.fields){
+
+                let comment
+
+                const fieldString = dbmlString.substring(field.token.start.offset, field.token.end.offset)
+                if(fieldString.indexOf('//') !== -1){
+                    comment = fieldString.substring(fieldString.indexOf('//') + 2).trim()
+                }
+
+                const noteStateDefinition = parseNoteStateDefinition(field.note)
+                if(noteStateDefinition !== false){
+                    //@ts-ignore
+                    if(!schema.states){
+                        //@ts-ignore
+                        schema.states = {}
+                    }
+                    //@ts-ignore
+                    schema.states[field.name] = noteStateDefinition
+                }
+
+                try {
+                    //@ts-ignore
+                    schema.properties[field.name] = {
+                        type: convertDBMLTypeToJSONSchemaType(field.type.type_name),
+                        description: comment || field.note || ''
+                    }
+
+                    if(field.not_null){
+                        //@ts-ignore
+                        schema.required.push(field.name)
+                    }
+                } catch (err){
+                    console.error('@ table', table.name, 'field', field.name, field)
+                    throw err
+                }
+            }
+
+            exportString += (await convertJsonSchemaToTypescriptType(schema, name, 'DBType_')) + '\n\n'
+        }
+    }
+
+    saveToFile(exportString, '../api/src/db/DBTypes.ts')
+
+    console.log('  done (' + tables.length + ' types exported)')
+}
+
