@@ -2,6 +2,7 @@ import OpenApiParser from'@readme/openapi-parser'
 import generateApiSchemas from './schemas'
 import generateApiTypes from './types'
 import {  OpenAPIV3_1 } from 'openapi-types'
+import { recursivelyWalkObject } from '../util/util'
 
 export async function generateApiTypesAndSchemas(){
 
@@ -78,21 +79,3 @@ async function loadOpenApiSchema(filePath: string){
 
     return doc as OpenAPIV3_1.Document
 }
-
-
-function recursivelyWalkObject(obj: {[key: string]: any}, callback: (entry: {[key: string]: any}) => void){
-
-    callback(obj)
-
-    if(obj instanceof Array){
-        for(const s of obj){
-            recursivelyWalkObject(s, callback)
-        }
-    } else if(obj instanceof Object){
-        for(const k of Object.keys(obj)){
-            recursivelyWalkObject(obj[k], callback)
-        }
-    }
-}
-
-

@@ -64,6 +64,8 @@ export function noteIsValidStateDefinition(note?: string){
 }
 
 
+export type States = {name: string, state: any}[]
+
 export function parseNoteStateDefinition(note?: string){
     if(typeof note !== 'string' || note.length === 0){
         return false
@@ -74,7 +76,7 @@ export function parseNoteStateDefinition(note?: string){
     if(validSyntaxSubType){
         const types = note.split(';')
 
-        const allStates: {name: string, state: any}[] = []
+        const allStates: States = []
 
         for(const type of types){
             const spl = type.split(':')
@@ -102,7 +104,7 @@ export function parseNoteStateDefinition(note?: string){
 
         const parts = note.split(',')
 
-        const states = []
+        const states: States = []
         for(const p of parts){
             const match = p.match(/\s*(\d+)\s*\=\s*(.+)/)
 

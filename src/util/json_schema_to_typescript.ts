@@ -5,6 +5,12 @@ export async function convertJsonSchemaToTypescriptType(schema: JSONSchema, sche
     // by default prevent additionaProperties
     recursivelyPreventAdditional(schema)
 
+
+    const schemaStates = schema.states
+    if(schemaStates){
+        delete schema.states
+    }
+
     const name = prefix + camelcasify(schemaName)
 
     const type = await compile(schema, name, {
@@ -14,12 +20,31 @@ export async function convertJsonSchemaToTypescriptType(schema: JSONSchema, sche
         }
     })
 
-
     if(type.startsWith('export interface')){
         const indexOfFirstCurly = type.indexOf('{')
 
-        // force to export type and not interface, for nicer intellisense in vs code
-        return 'export type ' + name + ' = ' + type.substring(indexOfFirstCurly)
+        if(indexOfFirstCurly === -1){
+            return type
+        } else {// force to export type and not interface, for nicer intellisense in vs code
+
+            let typeString = 'export type ' + name + ' = ' + type.substring(indexOfFirstCurly)
+
+            let preRes = ''
+
+            if(schemaStates){
+                for(const fieldName of Object.keys(schemaStates)){
+                    const statesConstantName = name + '_' + fieldName.toUpperCase() + 'S'
+                    const statesTypeName = name + '_' + camelcasify(fieldName) + 'Type'
+                    preRes += 'export type ' + statesTypeName + ' = ' + schemaStates[fieldName].map(s => s.state).join('|') + '\n'
+                    + 'export const ' + statesConstantName + ' = {\n  ' + schemaStates[fieldName].map(s => s.name + ': ' + s.state + ' as ' + statesTypeName).join(',\n  ') + '\n}\n'
+
+                    typeString = typeString.replaceAll(' ' + fieldName + ': number', ' ' + fieldName + ': ' + statesTypeName)
+                }
+            }
+
+            return preRes + typeString
+        }
+
     } else {
         return type
     }

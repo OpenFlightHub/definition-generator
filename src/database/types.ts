@@ -1,7 +1,8 @@
 import Table from "@dbml/core/types/model_structure/table"
 import { convertJsonSchemaToTypescriptType } from "../util/json_schema_to_typescript"
-import { convertDBMLTypeToJSONSchemaType, parseNoteStateDefinition } from "../util/dbml"
+import { convertDBMLTypeToJSONSchemaType, parseNoteStateDefinition, States } from "../util/dbml"
 import { saveToFile } from "../util/file"
+import { JSONSchema } from "json-schema-to-typescript"
 
 export default async function generateDatabaseTypes(tables: Table[], dbmlString: string){
     console.log('generate DB Types ...')
@@ -21,7 +22,14 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
                 name = name.substring(0, name.length - 1)
             }
 
-            const schema = {
+            const schema: {
+                required: string[]
+                properties: {[key: string]: {
+                    type: string,
+                    description: string
+                }}
+                states?: {[key: string]: States}
+            } = {
                 required: [],
                 properties: {}
             }
@@ -37,24 +45,19 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
 
                 const noteStateDefinition = parseNoteStateDefinition(field.note)
                 if(noteStateDefinition !== false){
-                    //@ts-ignore
                     if(!schema.states){
-                        //@ts-ignore
                         schema.states = {}
                     }
-                    //@ts-ignore
                     schema.states[field.name] = noteStateDefinition
                 }
 
                 try {
-                    //@ts-ignore
                     schema.properties[field.name] = {
                         type: convertDBMLTypeToJSONSchemaType(field.type.type_name),
                         description: comment || field.note || ''
                     }
 
                     if(field.not_null){
-                        //@ts-ignore
                         schema.required.push(field.name)
                     }
                 } catch (err){
@@ -63,7 +66,7 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
                 }
             }
 
-            exportString += (await convertJsonSchemaToTypescriptType(schema, name, 'DBType_')) + '\n\n'
+            exportString += (await convertJsonSchemaToTypescriptType(schema as JSONSchema, name, 'DBType_')) + '\n\n'
         }
     }
 

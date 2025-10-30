@@ -41,3 +41,18 @@ export function nonCircularObjectCloning(obj: Object){
         })
     )
 }
+
+export function recursivelyWalkObject(obj: {[key: string]: any}, callback: (entry: {[key: string]: any}, key?: string) => void, key?: string){
+
+    callback(obj, key)
+
+    if(obj instanceof Array){
+        for(const s of obj){
+            recursivelyWalkObject(s, callback, key)
+        }
+    } else if(obj instanceof Object){
+        for(const k of Object.keys(obj)){
+            recursivelyWalkObject(obj[k], callback, key)
+        }
+    }
+}
