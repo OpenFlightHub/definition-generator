@@ -70,8 +70,7 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
         }
     }
 
-    saveToFile(exportString, '../api/src/db/DBTypes.ts')
+    saveToFile(exportString, '../api/src/generated-definitions/db/DBTypes.ts')
 
     console.log('  done (' + tables.length + ' types exported)')
 }
-

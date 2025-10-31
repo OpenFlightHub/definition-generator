@@ -150,7 +150,7 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
 
     }
 
-    saveToFile(exportString, '../api/src/db/DBHelpers.ts')
+    saveToFile(exportString, '../api/src/generated-definitions/db/DBHelpers.ts')
 
     console.log('  done helpers for (' + tables.length + ' tables exported)')
 }

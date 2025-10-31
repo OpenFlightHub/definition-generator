@@ -22,7 +22,7 @@ export default async function generateApiTypes(openApiSchema: OpenAPIV3_1.Docume
         }
     }
 
-    saveToFile(str, '../api/src/definitions/ApiTypes.ts')
+    saveToFile(str, '../api/src/generated-definitions/api/ApiTypes.ts')
 
     console.log('  done (' + exportedSchemasCount + ' types exported)')
 }

@@ -5,7 +5,7 @@ import { saveToFile } from '../util/file'
 export default function generateApiSchemas(openApiSchema: OpenAPIV3_1.Document){
     console.log('generate api schemas ...')
 
-    let str = 'import {JSONSchema} from \'json-schema-to-typescript\'\n\n'
+    let str = 'import {JSONSchema4} from \'../util/types/JSONSchema\'\n\n'
 
     let exportedSchemasCount = 0
 
@@ -17,14 +17,14 @@ export default function generateApiSchemas(openApiSchema: OpenAPIV3_1.Document){
             //@ts-ignore
             delete schema['x-internal'] // remove internal marker
 
-            str += `export const ${'ApiSchema_' + camelcasify(schemaName) + ' : JSONSchema '} = ` + JSON.stringify(schema, null, 4) + '\n\n'
+            str += `export const ${'ApiSchema_' + camelcasify(schemaName) + ' : JSONSchema4 '} = ` + JSON.stringify(schema, null, 4) + '\n\n'
 
             exportedSchemasCount++
         }
     }
 
 
-    saveToFile(str, '../api/src/definitions/ApiSchemas.ts')
+    saveToFile(str, '../api/src/generated-definitions/api/ApiSchemas.ts')
 
     console.log('  done (' + exportedSchemasCount + ' schemas exported)')
 }
