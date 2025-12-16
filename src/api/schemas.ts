@@ -5,7 +5,7 @@ import { saveToFile } from '../util/file'
 export default function generateApiSchemas(openApiSchema: OpenAPIV3_1.Document){
     console.log('generate api schemas ...')
 
-    let str = 'import {JSONSchema4} from \'../util/types/JSONSchema\'\n\n'
+    let str = 'import {JSONSchema4} from \'../../util/types/JSONSchema\'\n\n'
 
     let exportedSchemasCount = 0
 

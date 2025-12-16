@@ -111,14 +111,14 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
         exportString += `\nimport {DBType_${dbTypeName}} from './DBTypes'\n`
 
         exportString += `\n
-    export function insert${normalizeTableName(tableName)}(values: DBInsert_${dbTypeName}){
+    export function insert_${normalizeTableName(tableName)}(values: DBInsert_${dbTypeName}){
         return db.one<DBType_${dbTypeName}>(db.$config.pgp.helpers.insert(values, undefined, '${tableName}') + ' RETURNING *')
     }`
 
         exportString += `\n\n/**
     @param idOrWhereCondition is either a single id or a where clause which shall be generated with pgp.as.format() e.g. pgp.as.format('WHERE id = \${id}', {id: 42})
     */
-    export function update${normalizeTableName(tableName)}<T extends number | string>(values: DBUpdate_${dbTypeName}, idOrWhereCondition: T): T extends number ? Promise<DBType_${dbTypeName}> : Promise<DBType_${dbTypeName}[]>{
+    export function update_${normalizeTableName(tableName)}<T extends number | string>(values: DBUpdate_${dbTypeName}, idOrWhereCondition: T): T extends number ? Promise<DBType_${dbTypeName}> : Promise<DBType_${dbTypeName}[]>{
         if(typeof idOrWhereCondition === 'number'){
             const id = idOrWhereCondition as number
             //@ts-ignore
@@ -134,7 +134,7 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
         }
     }
 
-    export function delete${normalizeTableName(tableName)}(id: number){
+    export function delete_${normalizeTableName(tableName)}(id: number){
         return db.one<DBType_${dbTypeName}>('DELETE FROM ${tableName} WHERE id = \${id} RETURNING *', {id})
     }
 
@@ -143,7 +143,7 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
     if(tableDefinition.columns.find(el => el.name === 'id')){
 
         exportString += `\n\n
-    export function select${normalizeTableName(tableName)}(id: number){
+    export function select_${normalizeTableName(tableName)}(id: number){
         return db.one<DBType_${dbTypeName}>('SELECT * FROM ${tableName} ' + pgp.as.format('WHERE id = \${id}', {id}))
     }`
     }

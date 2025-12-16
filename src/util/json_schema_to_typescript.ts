@@ -40,12 +40,15 @@ export async function convertJsonSchemaToTypescriptType(schema: JSONSchema, sche
 
 
                     preRes += 'export type ' + statesTypeName + ' = ' + schemaStates[fieldName].map(s => s.state).join('|') + '\n'
-                    + 'export const ' + statesConstantName + ' = {\n  ' + schemaStates[fieldName].map(s => s.name + ': ' + s.state + ' as ' + statesTypeName).join(',\n  ') + '\n}\n'
+                    + 'export const ' + statesConstantName + ' = {\n  ' + schemaStates[fieldName].map(s => s.name + ': ' + s.state).join(',\n  ') + '\n} as const\n'
 
                     typeString = typeString.replaceAll(' ' + fieldName + ': number', ' ' + fieldName + ': ' + statesTypeName)
                 }
 
             }
+
+
+            typeString = typeString.replaceAll(': unknown', ': any')
 
             return preRes + typeString
         }
