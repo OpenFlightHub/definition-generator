@@ -1,13 +1,13 @@
 
 
-export function camelcasify(text: string){
+export function camelcasify(text: string, keepUnderscores = true){
     const lowerCase = text.toLowerCase()
 
     const words = lowerCase.replace(/[^a-zA-Z0-9]/g, '_').split('_').filter(t => t !== '')
 
     const ret = words.map((t, index) => {
         return t.substring(0, 1).toUpperCase() + t.substring(1)
-    }).join('')
+    }).join(keepUnderscores ? '_' : '')
 
     if(ret === ''){
         throw new Error('camelcasify failed for "' + text + '"')

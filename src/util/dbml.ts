@@ -21,7 +21,8 @@ export function convertDBMLTypeToJSONSchemaType(type: string){
 
         case 'uuid': return 'string'
 
-        case 'jsonb': return 'Record<string,any>'
+        case 'json':
+        case 'jsonb': return 'any'
 
         default: throw new Error('unsupported DBML type: ' + type)
 
@@ -51,7 +52,8 @@ export function convertDBMLTypeToTypescriptType(type: string){
 
         case 'uuid': return 'string'
 
-        case 'jsonb': return 'string'
+        case 'json':
+        case 'jsonb': return 'any'
 
         default: throw new Error('unsupported DBML type: ' + type)
 
@@ -63,8 +65,8 @@ export function noteIsValidStateDefinition(note?: string){
     return parseNoteStateDefinition(note) !== false
 }
 
-
-export type States = {name: string, state: any}[]
+export type State_Definition = {name: string, state: any}
+export type States = State_Definition[]
 
 export function parseNoteStateDefinition(note?: string){
     if(typeof note !== 'string' || note.length === 0){
@@ -82,7 +84,7 @@ export function parseNoteStateDefinition(note?: string){
             const spl = type.split(':')
             const typeName = spl[0].trim()
 
-            const subTypeStates = parseNoteStateDefinition(spl[1].trim())
+            const subTypeStates = parseNoteStateDefinition(spl[1].trim()) as State_Definition[]
 
             if(subTypeStates){
                 for(const subType of subTypeStates){
@@ -126,18 +128,6 @@ export function parseNoteStateDefinition(note?: string){
 
         return states
     }
-
-
-    try {
-        const parsed = JSON.parse(note)
-
-        //TODO implement
-        return false
-
-    } catch (err){
-        //continue
-    }
-
 
     return false
 }

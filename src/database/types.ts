@@ -34,6 +34,15 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
                 properties: {}
             }
 
+            if(table.note && table.note.startsWith('[TypescriptType]=')){
+                try {
+                    exportString += table.note.substring('[TypescriptType]='.length)
+                    continue
+                } catch (err){
+                    throw new Error('failed to parse json states: ' + err)
+                }
+            }
+
             for(const field of table.fields){
 
                 let comment

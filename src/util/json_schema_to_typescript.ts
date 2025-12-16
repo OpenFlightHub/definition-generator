@@ -32,14 +32,19 @@ export async function convertJsonSchemaToTypescriptType(schema: JSONSchema, sche
             let preRes = ''
 
             if(schemaStates){
+
                 for(const fieldName of Object.keys(schemaStates)){
+
                     const statesConstantName = name + '_' + fieldName.toUpperCase() + 'S'
                     const statesTypeName = name + '_' + camelcasify(fieldName) + 'Type'
+
+
                     preRes += 'export type ' + statesTypeName + ' = ' + schemaStates[fieldName].map(s => s.state).join('|') + '\n'
                     + 'export const ' + statesConstantName + ' = {\n  ' + schemaStates[fieldName].map(s => s.name + ': ' + s.state + ' as ' + statesTypeName).join(',\n  ') + '\n}\n'
 
                     typeString = typeString.replaceAll(' ' + fieldName + ': number', ' ' + fieldName + ': ' + statesTypeName)
                 }
+
             }
 
             return preRes + typeString
