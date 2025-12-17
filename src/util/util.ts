@@ -48,11 +48,11 @@ export function recursivelyWalkObject(obj: {[key: string]: any}, callback: (entr
 
     if(obj instanceof Array){
         for(const s of obj){
-            recursivelyWalkObject(s, callback, key)
+            recursivelyWalkObject(s, callback, s)
         }
     } else if(obj instanceof Object){
         for(const k of Object.keys(obj)){
-            recursivelyWalkObject(obj[k], callback, key)
+            recursivelyWalkObject(obj[k], callback, k)
         }
     }
 }
