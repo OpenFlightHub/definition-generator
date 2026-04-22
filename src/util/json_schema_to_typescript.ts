@@ -27,7 +27,7 @@ export async function convertJsonSchemaToTypescriptType(schema: JSONSchema, sche
             return type
         } else {// force to export type and not interface, for nicer intellisense in vs code
 
-            let typeString = 'export type ' + name + ' = ' + type.substring(indexOfFirstCurly)
+            let typeString = '\nexport type ' + name + ' = ' + type.substring(indexOfFirstCurly)
 
             let preRes = ''
 
