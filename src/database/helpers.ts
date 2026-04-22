@@ -201,7 +201,7 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
                 whereCondition = whereCondition.substring(0, whereCondition.length - 1)
             }
 
-            const ret = await db.manyOrNone<DBType_${dbTypeName}>('SELECT FROM ${tableName} ' + whereCondition)
+            const ret = await db.manyOrNone<DBType_${dbTypeName}>('SELECT * FROM ${tableName} ' + whereCondition)
 
             //@ts-ignore
             return ret
