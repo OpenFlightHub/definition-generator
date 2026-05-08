@@ -83,8 +83,7 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
     }
 
 
-    let exportString = `import * as pgp from 'pg-promise'
-    const db : pgp.IDatabase<any> = global.db\n\n`
+    let exportString = `import * as pgp from 'pg-promise'\n//@ts-ignore\nconst db : pgp.IDatabase<any> = global.db\n\n`
 
     for(const tableName of Object.keys(tableDefinitions)){
 
