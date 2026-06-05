@@ -7,7 +7,7 @@ import { JSONSchema } from "json-schema-to-typescript"
 export default async function generateDatabaseTypes(tables: Table[], dbmlString: string){
     console.log('generate DB Types ...')
 
-    let exportString = ''
+    let exportString = 'import { ST_Geometry, ST_Point, ST_Line } from \'../../util/postgis\';\n\n'
 
     for(const table of tables){
         if(table){
@@ -27,7 +27,7 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
                 properties: {[key: string]: {
                     type: string,
                     description: string
-                }}
+                } | JSONSchema}
                 states?: {[key: string]: States}
             } = {
                 required: [],
@@ -42,6 +42,8 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
                     throw new Error('failed to parse json states: ' + err)
                 }
             }
+
+            const geometryFields: string[] = []
 
             for(const field of table.fields){
 
@@ -61,6 +63,11 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
                 }
 
                 try {
+
+                    if(field.type.type_name.startsWith('geometry')){
+                        geometryFields.push(field.name)
+                    }
+
                     schema.properties[field.name] = {
                         type: convertDBMLTypeToJSONSchemaType(field.type.type_name),
                         description: comment || field.note || ''
@@ -75,7 +82,14 @@ export default async function generateDatabaseTypes(tables: Table[], dbmlString:
                 }
             }
 
-            exportString += (await convertJsonSchemaToTypescriptType(schema as JSONSchema, name, 'DBType_')) + '\n\n'
+            let typeString = await convertJsonSchemaToTypescriptType(schema as JSONSchema, name, 'DBType_')
+
+
+            for(const geometryField of geometryFields){
+                typeString = typeString.replace(new RegExp(geometryField + '\\:\\s*geometry', 'g'), geometryField + ': ST_Geometry')
+            }
+
+            exportString += typeString + '\n\n'
         }
     }
 

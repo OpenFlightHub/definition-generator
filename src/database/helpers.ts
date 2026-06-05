@@ -7,7 +7,12 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
     console.log('generate DB Helpers ...')//TODO refactor to generate DBInsert and DBUpdate in the generateDBTypes.js file, so its all in one place (// TODO is this still required?)
 
     const tableDefinitions: {[key: string]: {
-        columns: {name: string}[]
+        columns: {
+            name: string
+            cnd?: boolean
+            skip?: string
+            isGeometry: boolean
+        }[]
         insertTypes: string[]
         updateTypes: string[]
         typesToImport: string[]
@@ -22,7 +27,7 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
                 throw new Error('table.name is invalid: ' + tableName)
             }
 
-            const columns: {name: string, cnd?: boolean, skip?: string}[] = []
+            const columns: typeof tableDefinitions[string]['columns'] = []
             const insertTypes: string[] = []
             const updateTypes: string[] = []
             const typesToImport: string[] = []
@@ -43,7 +48,8 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
                 const name = field.name
 
                 const col: typeof columns[0] = {
-                    name
+                    name,
+                    isGeometry: field.type.type_name === 'geometry'
                 }
 
                 if(isSequence){
@@ -67,8 +73,8 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
                         type = convertDBMLTypeToTypescriptType(field.type.type_name)
                     }
 
-                    insertTypes.push(name + ((isSequence || isOptional) ? '?' : '') + ': ' + type)
-                    updateTypes.push(name + '?: ' + type)
+                    insertTypes.push(type === 'geometry' ? (name + ': ST_Geometry') : (name + ((isSequence || isOptional) ? '?' : '') + ': ' + type))
+                    updateTypes.push(type === 'geometry' ? (name + '?: ST_Geometry') : (name + '?: ' + type))
                 }
 
             }
@@ -83,7 +89,15 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
     }
 
 
-    let exportString = `import * as pgp from 'pg-promise'\n//@ts-ignore\nconst db : pgp.IDatabase<any> = global.db\n\n`
+    let exportString = `import * as pgp from 'pg-promise'\n//@ts-ignore\nconst db : pgp.IDatabase<any> = global.db\n\nimport { ST_Geometry } from '../../util/postgis';\n\n
+
+    export function replaceGeometryWithParsed(rows: any[], originalColumn: string, geoJsonColumn: string){
+        for(const row of rows){
+            row[originalColumn] = ST_Geometry.fromGeoJSON(JSON.parse(row[geoJsonColumn]))
+            delete row[geoJsonColumn]
+        }
+    }
+    `
 
     for(const tableName of Object.keys(tableDefinitions)){
 
@@ -101,17 +115,38 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
         const columSetName = 'COLUMN_SET_' + tableName.toUpperCase()
         const columSetNameUpdate = columSetName + '_UPDATE'
 
-        exportString += '\nconst ' + columSetName + ' = new db.$config.pgp.helpers.ColumnSet(' + JSON.stringify(tableDefinitions[tableName].columns, null, 4).replace(/"\$COLERA\$"/g, 'col => !col.exists') + ', {table: "' + tableName + '"})\n'
 
-        exportString += '\nconst ' + columSetNameUpdate + ' = new db.$config.pgp.helpers.ColumnSet(' + JSON.stringify(tableDefinitions[tableName].columns.map(col => {
+        function makeSelectAll(){
+            return ['*' , ...tableDefinition.columns.filter(c => c.isGeometry).map(c => 'ST_AsGeoJSON(geom) as ' + c.name + '_parsed')].join(', ')
+        }
+
+        function makeGeometryReplaceString(single = false){
+            return tableDefinition.columns.filter(c => c.isGeometry).map(c => 'replaceGeometryWithParsed(' + (single ? '[ret]' : 'ret') + ', \'' + c.name + '\', \'' + c.name + '_parsed\')').join('\n')
+        }
+
+        function cleanColumnForPg(col: typeof tableDefinition.columns[0]){
+            return {
+                name: col.name,
+                cnd: col.cnd,
+                skip: col.skip
+            }
+        }
+
+        exportString += '\nconst ' + columSetName + ' = new db.$config.pgp.helpers.ColumnSet(' + JSON.stringify(tableDefinitions[tableName].columns.map(cleanColumnForPg), null, 4).replace(/"\$COLERA\$"/g, '(col: {exists: boolean}) => !col.exists') + ', {table: "' + tableName + '"})\n'
+
+        exportString += '\nconst ' + columSetNameUpdate + ' = new db.$config.pgp.helpers.ColumnSet(' + JSON.stringify(tableDefinitions[tableName].columns.map(cleanColumnForPg).map(col => {
             return {name: col.name, skip: '$COLERA$'}
-        }), null, 4).replace(/"\$COLERA\$"/g, 'col => !col.exists') + ', {table: "' + tableName + '"})'
+        }), null, 4).replace(/"\$COLERA\$"/g, '(col: {exists: boolean}) => !col.exists') + ', {table: "' + tableName + '"})'
 
         exportString += `\nimport {DBType_${dbTypeName}} from './DBTypes'\n`
 
         exportString += `\n
-    export function insert_${normalizeTableName(tableName)}(values: DBInsert_${dbTypeName}){
-        return db.one<DBType_${dbTypeName}>(db.$config.pgp.helpers.insert(values, undefined, '${tableName}') + ' RETURNING *')
+    export async function insert_${normalizeTableName(tableName)}(values: DBInsert_${dbTypeName}){
+        const ret = await db.one<DBType_${dbTypeName}>(db.$config.pgp.helpers.insert(values, undefined, '${tableName}') + ' RETURNING ${makeSelectAll()}')
+
+        ${makeGeometryReplaceString(true)}
+
+        return ret
     }`
 
         exportString += `\n\n    /**
@@ -120,12 +155,14 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
     export async function update_${normalizeTableName(tableName)}<T extends number | string>(idOrWhereCondition: T, values: DBUpdate_${dbTypeName}): Promise<T extends number ? false | DBType_${dbTypeName} : DBType_${dbTypeName}[]>{
         if(typeof idOrWhereCondition === 'number'){
             const id = idOrWhereCondition as number
-            const ret = await db.oneOrNone<DBType_${dbTypeName}>(db.$config.pgp.helpers.update(values,  ${columSetNameUpdate}) + ' WHERE id = ' + id + ' RETURNING *')
+            const ret = await db.oneOrNone<DBType_${dbTypeName}>(db.$config.pgp.helpers.update(values,  ${columSetNameUpdate}) + ' WHERE id = ' + id + ' RETURNING ${makeSelectAll()}')
 
             if(!ret){
                 //@ts-ignore
                 return false
             }
+
+            ${makeGeometryReplaceString(true)}
 
             //@ts-ignore
             return ret
@@ -137,7 +174,9 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
                 whereCondition = whereCondition.substring(0, whereCondition.length - 1)
             }
 
-            const ret = await db.manyOrNone<DBType_${dbTypeName}>(db.$config.pgp.helpers.update(values,  ${columSetNameUpdate}) + ' ' + whereCondition + ' RETURNING *')
+            const ret = await db.manyOrNone<DBType_${dbTypeName}>(db.$config.pgp.helpers.update(values,  ${columSetNameUpdate}) + ' ' + whereCondition + ' RETURNING ${makeSelectAll()}')
+
+            ${makeGeometryReplaceString()}
 
             //@ts-ignore
             return ret
@@ -150,12 +189,14 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
     export async function delete_${normalizeTableName(tableName)}<T extends number | string>(idOrWhereCondition: T): Promise<T extends number ? false | DBType_${dbTypeName} : DBType_${dbTypeName}[]>{
         if(typeof idOrWhereCondition === 'number'){
             const id = idOrWhereCondition as number
-            const ret = await db.oneOrNone<DBType_${dbTypeName}>('DELETE FROM ${tableName} WHERE id = \${id} RETURNING *', {id})
+            const ret = await db.oneOrNone<DBType_${dbTypeName}>('DELETE FROM ${tableName} WHERE id = \${id} RETURNING ${makeSelectAll()}', {id})
 
             if(!ret){
                 //@ts-ignore
                 return false
             }
+
+            ${makeGeometryReplaceString(true)}
 
             //@ts-ignore
             return ret
@@ -167,47 +208,51 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
                 whereCondition = whereCondition.substring(0, whereCondition.length - 1)
             }
 
-            const ret = await db.manyOrNone<DBType_${dbTypeName}>('DELETE FROM ${tableName} ' + whereCondition + ' RETURNING *')
+            const ret = await db.manyOrNone<DBType_${dbTypeName}>('DELETE FROM ${tableName} ' + whereCondition + ' RETURNING ${makeSelectAll()}')
+
+            ${makeGeometryReplaceString()}
 
             //@ts-ignore
             return ret
         }
-    }
-
-    `
+    }`
 
     if(tableDefinition.columns.find(el => el.name === 'id')){
 
         exportString += `\n\n    /**
-    @param idOrWhereCondition is either a single id or a where clause which shall be generated with pgp.as.format() e.g. pgp.as.format('WHERE id = \${id}', {id: 42})
-    */
-    export async function select_${normalizeTableName(tableName)}<T extends number | string>(idOrWhereCondition: T): Promise<T extends number ? false | DBType_${dbTypeName} : DBType_${dbTypeName}[]>{
-        if(typeof idOrWhereCondition === 'number'){
-            const id = idOrWhereCondition as number
-            const ret = await db.oneOrNone<DBType_${dbTypeName}>('SELECT * FROM ${tableName} ' + pgp.as.format('WHERE id = \${id}', {id}))
+        @param idOrWhereCondition is either a single id or a where clause which shall be generated with pgp.as.format() e.g. pgp.as.format('WHERE id = \${id}', {id: 42})
+        */
+        export async function select_${normalizeTableName(tableName)}<T extends number | string>(idOrWhereCondition: T): Promise<T extends number ? false | DBType_${dbTypeName} : DBType_${dbTypeName}[]>{
+            if(typeof idOrWhereCondition === 'number'){
+                const id = idOrWhereCondition as number
+                const ret = await db.oneOrNone<DBType_${dbTypeName}>('SELECT ${makeSelectAll()} FROM ${tableName} ' + pgp.as.format('WHERE id = \${id}', {id}))
 
-            if(!ret){
+                if(!ret){
+                    //@ts-ignore
+                    return false
+                }
+
+                ${makeGeometryReplaceString(true)}
+
                 //@ts-ignore
-                return false
+                return ret
+            } else {
+                let whereCondition = idOrWhereCondition as string
+                whereCondition = whereCondition.trim()
+                if(whereCondition.endsWith(';')){
+                    whereCondition = whereCondition.substring(0, whereCondition.length - 1)
+                }
+
+                const ret = await db.manyOrNone<DBType_${dbTypeName}>('SELECT ${makeSelectAll()} FROM ${tableName} ' + whereCondition)
+
+                ${makeGeometryReplaceString()}
+
+                //@ts-ignore
+                return ret
             }
 
-            //@ts-ignore
-            return ret
-        } else {
-            let whereCondition = idOrWhereCondition as string
-            whereCondition = whereCondition.trim()
-            if(whereCondition.endsWith(';')){
-                whereCondition = whereCondition.substring(0, whereCondition.length - 1)
-            }
+        }`
 
-            const ret = await db.manyOrNone<DBType_${dbTypeName}>('SELECT * FROM ${tableName} ' + whereCondition)
-
-            //@ts-ignore
-            return ret
-        }
-
-    }`
-    }
 
     }
 
@@ -224,4 +269,3 @@ function normalizeTableName(tableName: string){
 
     return normed
 }
-

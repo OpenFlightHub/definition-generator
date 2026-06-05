@@ -1,3 +1,4 @@
+
 export function convertDBMLTypeToJSONSchemaType(type: string){
     switch(type){
         case 'text': return 'string'
@@ -22,7 +23,9 @@ export function convertDBMLTypeToJSONSchemaType(type: string){
         case 'uuid': return 'string'
 
         case 'json':
-        case 'jsonb': return 'any'
+        case 'jsonb': return 'object'
+
+        case 'geometry': return 'geometry'
 
         default: throw new Error('unsupported DBML type: ' + type)
 
@@ -53,7 +56,9 @@ export function convertDBMLTypeToTypescriptType(type: string){
         case 'uuid': return 'string'
 
         case 'json':
-        case 'jsonb': return 'any'
+        case 'jsonb': return 'object'
+
+        case 'geometry': return 'geometry'
 
         default: throw new Error('unsupported DBML type: ' + type)
 
