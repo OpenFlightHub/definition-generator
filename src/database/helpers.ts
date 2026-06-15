@@ -153,6 +153,9 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
     @param idOrWhereCondition is either a single id or a where clause which shall be generated with pgp.as.format() e.g. pgp.as.format('WHERE id = \${id}', {id: 42})
     */
     export async function update_${normalizeTableName(tableName)}<T extends number | string>(idOrWhereCondition: T, values: DBUpdate_${dbTypeName}): Promise<T extends number ? false | DBType_${dbTypeName} : DBType_${dbTypeName}[]>{
+
+        ${tableDefinition.columns.find(c => c.name === 'updated_at') ? 'if(!values.updated_at){values.updated_at = new Date().toISOString()}' : ''}
+
         if(typeof idOrWhereCondition === 'number'){
             const id = idOrWhereCondition as number
             const ret = await db.oneOrNone<DBType_${dbTypeName}>(db.$config.pgp.helpers.update(values,  ${columSetNameUpdate}) + ' WHERE id = ' + id + ' RETURNING ${makeSelectAll()}')
