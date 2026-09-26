@@ -257,18 +257,19 @@ export default function generateDatabaseHelpers(tables: Table[], dbmlString: str
         }`
 
 
+        }
+
+        saveToFile(exportString, '../api/src/generated-definitions/db/DBHelpers.ts')
+
+        console.log('  done helpers for (' + tables.length + ' tables exported)')
     }
 
-    saveToFile(exportString, '../api/src/generated-definitions/db/DBHelpers.ts')
+    function normalizeTableName(tableName: string){
+        let normed = camelcasify(tableName)
+        if(normed.endsWith('s')){
+            normed = normed.substring(0, normed.length - 1)
+        }
 
-    console.log('  done helpers for (' + tables.length + ' tables exported)')
-}
-
-function normalizeTableName(tableName: string){
-    let normed = camelcasify(tableName)
-    if(normed.endsWith('s')){
-        normed = normed.substring(0, normed.length - 1)
+        return normed;
     }
-
-    return normed
 }
